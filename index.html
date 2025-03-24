@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ro">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Flappy Bird</title>
+    <style>
+      body {
+        text-align: center;
+        background-color: #222;
+        color: white;
+      }
+      canvas {
+        border: 2px solid white;
+        background: linear-gradient(to bottom, #87ceeb, #008080);
+        filter: drop-shadow(0 0 10px white);
+      }
+      #score {
+        font-size: 20px;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Flappy Bird</h1>
+    <div id="score">Scor: 0 | Scor Maxim: 0</div>
+    <canvas id="gameCanvas" width="600" height="400"></canvas>
+    <script>
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+
+      let birdImg = new Image();
+      birdImg.src = "images/bird.webp"; // Înlocuiește cu calea corectă a imaginii pasării
+
+      let topPipeImg = new Image();
+      topPipeImg.src = "images/reverse.png"; // Înlocuiește cu calea corectă a imaginii tubului de sus
+
+      let bottomPipeImg = new Image();
+      bottomPipeImg.src = "images/pipe.png"; // Înlocuiește cu calea corectă a imaginii tubului de jos
+
+      let player = {
+        x: 100,
+        y: 200,
+        width: 40,
+        height: 30,
+        velocityY: 0,
+        startDelay: true,
+      };
+      let gravity = 0.5;
+      let jumpStrength = -8;
+      let pipes = [];
+      let pipeGap = 150; // Spatiu mai mic între obstacole
+      let pipeWidth = 65;
+      let score = 0;
+      let maxScore = localStorage.getItem("maxScore") || 0;
+      let gameOver = false;
+      let canJump = false;
+
+      setTimeout(() => {
+        player.startDelay = false;
+        canJump = true;
+      }, 1000); // Intarziere la inceput de 1 secunda
+
+      function drawPlayer() {
+        ctx.drawImage(birdImg, player.x, player.y, player.width, player.height);
+      }
+
+      function drawPipes() {
+        pipes.forEach((pipe) => {
+          // Desenează imaginea pentru tubul superior
+          ctx.drawImage(topPipeImg, pipe.x, 0, pipeWidth, pipe.topHeight);
+          // Desenează imaginea pentru tubul inferior
+          ctx.drawImage(
+            bottomPipeImg,
+            pipe.x,
+            pipe.topHeight + pipeGap,
+            pipeWidth,
+            canvas.height - pipe.topHeight - pipeGap
+          );
+        });
+      }
+
+      function updatePipes() {
+        pipes.forEach((pipe) => {
+          pipe.x -= 3;
+        });
+        if (pipes.length === 0 || pipes[pipes.length - 1].x < 400) {
+          let topHeight =
+            Math.floor(Math.random() * (canvas.height - pipeGap - 50)) + 20;
+          pipes.push({ x: canvas.width, topHeight, passed: false });
+        }
+        pipes = pipes.filter((pipe) => pipe.x > -pipeWidth);
+      }
+
+      function updatePlayer() {
+        if (!player.startDelay) {
+          player.velocityY += gravity;
+          player.y += player.velocityY;
+        }
+        if (player.y + player.height >= canvas.height) {
+          player.y = canvas.height - player.height;
+          endGame();
+        }
+        if (player.y <= 0) {
+          player.y = 0;
+          player.velocityY = 0;
+        }
+      }
+
+      function detectCollision() {
+        let birdHitbox = {
+          x: player.x + 10, // Offset pentru a face hitbox-ul mai mic
+          y: player.y + 10, // Offset pentru a face hitbox-ul mai mic
+          width: player.width - 20, // Micșorarea lățimii hitbox-ului
+          height: player.height - 20, // Micșorarea înălțimii hitbox-ului
+        };
+
+        let collisionBuffer = 5; // Zona de buffer care face ca pasărea să nu fie imediat considerată în coliziune
+
+        for (let pipe of pipes) {
+          if (
+            birdHitbox.x < pipe.x + pipeWidth + collisionBuffer &&
+            birdHitbox.x + birdHitbox.width > pipe.x - collisionBuffer
+          ) {
+            if (
+              birdHitbox.y < pipe.topHeight + collisionBuffer ||
+              birdHitbox.y + birdHitbox.height >
+                pipe.topHeight + pipeGap - collisionBuffer
+            ) {
+              endGame();
+            }
+          }
+          if (!pipe.passed && pipe.x + pipeWidth < birdHitbox.x) {
+            pipe.passed = true;
+            score++;
+            document.getElementById("score").innerText =
+              "Scor: " + score + " | Scor Maxim: " + maxScore;
+          }
+        }
+      }
+
+      function endGame() {
+        if (!gameOver) {
+          gameOver = true;
+          if (score > maxScore) {
+            maxScore = score;
+            localStorage.setItem("maxScore", maxScore);
+          }
+          setTimeout(() => {
+            alert("Game Over! Scor: " + score + " | Scor Maxim: " + maxScore);
+            document.location.reload();
+          }, 100);
+        }
+      }
+
+      function gameLoop() {
+        if (!gameOver) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          drawPlayer();
+          drawPipes();
+          updatePlayer();
+          updatePipes();
+          detectCollision();
+          requestAnimationFrame(gameLoop);
+        }
+      }
+
+      document.addEventListener("keydown", function (event) {
+        if (event.code === "Space" && !gameOver && canJump) {
+          player.velocityY = jumpStrength;
+        }
+      });
+
+      gameLoop();
+    </script>
+  </body>
+</html>
